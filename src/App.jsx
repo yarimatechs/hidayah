@@ -533,7 +533,11 @@ export default function App() {
   const [calendarData, setCalendarData] = useState(null);
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarError, setCalendarError] = useState("");
-
+  // Qibla state
+  const [qiblaAngle, setQiblaAngle] = useState(null);
+  const [deviceHeading, setDeviceHeading] = useState(0);
+  const [qiblaPermission, setQiblaPermission] = useState(false);
+  const [qiblaError, setQiblaError] = useState("");
   // AI Companion state
   const [messages, setMessages] = useState([
     {
