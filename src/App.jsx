@@ -676,7 +676,68 @@ export default function App() {
     }
     setQuranLoading(false);
   }
+  // Qibla calculation
+  function calculateQibla(lat, lon) {
+    const MAKKAH_LAT = 21.3891;
+    const MAKKAH_LON = 39.8579;
+    const φ1 = (lat * Math.PI) / 180;
+    const φ2 = (MAKKAH_LAT * Math.PI) / 180;
+    const Δλ = ((MAKKAH_LON - lon) * Math.PI) / 180;
+    const y = Math.sin(Δλ) * Math.cos(φ2);
+    const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+    const θ = Math.atan2(y, x);
+    return ((θ * 180) / Math.PI + 360) % 360;
+  }
 
+  function startQiblaCompass() {
+    if (!location) {
+      setQiblaError("Location not detected yet. Please wait.");
+      return;
+    }
+    const angle = calculateQibla(location.lat, location.lon);
+    setQiblaAngle(angle);
+
+    if (window.DeviceOrientationEvent) {
+      if (typeof DeviceOrientationEvent.requestPermission === "function") {
+        DeviceOrientationEvent.requestPermission()
+          .then((response) => {
+            if (response === "granted") {
+              window.addEventListener("deviceorientationabsolute", handleOrientation, true);
+              window.addEventListener("deviceorientation", handleOrientation, true);
+              setQiblaPermission(true);
+            } else {
+              setQiblaError("Compass permission denied.");
+            }
+          })
+          .catch(() => setQiblaError("Compass not supported on this device."));
+      } else {
+        window.addEventListener("deviceorientationabsolute", handleOrientation, true);
+        window.addEventListener("deviceorientation", handleOrientation, true);
+        setQiblaPermission(true);
+      }
+    } else {
+      setQiblaError("Compass not supported on this device.");
+    }
+  }
+
+  function handleOrientation(event) {
+    let heading = 0;
+    if (event.webkitCompassHeading !== undefined) {
+      heading = event.webkitCompassHeading;
+    } else if (event.absolute && event.alpha !== null) {
+      heading = 360 - event.alpha;
+    } else if (event.alpha !== null) {
+      heading = 360 - event.alpha;
+    }
+    setDeviceHeading(heading);
+  }
+
+  useEffect(() => {
+    return () => {
+      window.removeEventListener("deviceorientationabsolute", handleOrientation, true);
+      window.removeEventListener("deviceorientation", handleOrientation, true);
+    };
+  }, []);
   async function sendMessage() {
     if (!aiInput.trim() || aiLoading) return;
     const userMessage = { role: "user", content: aiInput.trim() };
