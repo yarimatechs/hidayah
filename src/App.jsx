@@ -860,6 +860,12 @@ IMPORTANT RULES:
         >
           🤖 AI
         </button>
+        <button
+          style={{ ...styles.tab, ...(activeTab === "qibla" ? styles.tabActive : {}) }}
+          onClick={() => { setActiveTab("qibla"); startQiblaCompass(); }}
+        >
+          🧭 Qibla
+        </button>
       </div>
 
       {/* ===== PRAYER TIMES TAB ===== */}
