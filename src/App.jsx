@@ -1014,6 +1014,88 @@ IMPORTANT RULES:
           </div>
         </div>
       )}
+      {/* ===== QIBLA COMPASS TAB ===== */}
+      {activeTab === "qibla" && (
+        <div style={styles.content}>
+          <div style={styles.azkarTitle}>القبلة</div>
+          <div style={styles.azkarSubtitle}>Qibla Direction — Toward the Ka'bah</div>
+
+          {qiblaError && (
+            <div style={styles.errorCard}>
+              <AlertCircle size={18} color="#E8601C" />
+              <span>{qiblaError}</span>
+            </div>
+          )}
+
+          {!qiblaAngle && !qiblaError && (
+            <div style={styles.loadingWrap}>
+              <div style={styles.loadingDot} />
+              <div style={styles.loadingText}>Detecting your location…</div>
+            </div>
+          )}
+
+          {qiblaAngle !== null && (
+            <>
+              {/* Compass */}
+              <div style={styles.compassWrap}>
+                {/* Outer ring — rotates opposite to device heading to simulate fixed compass */}
+                <div
+                  style={{
+                    ...styles.compassRing,
+                    transform: `rotate(${-deviceHeading}deg)`,
+                    transition: "transform 0.3s ease",
+                  }}
+                >
+                  {/* North marker */}
+                  <div style={styles.compassN}>N</div>
+                  <div style={styles.compassS}>S</div>
+                  <div style={styles.compassE}>E</div>
+                  <div style={styles.compassW}>W</div>
+                </div>
+
+                {/* Qibla needle — rotates to point toward Makkah */}
+                <div
+                  style={{
+                    ...styles.compassNeedle,
+                    transform: `rotate(${qiblaAngle - deviceHeading}deg)`,
+                    transition: "transform 0.3s ease",
+                  }}
+                >
+                  <div style={styles.needleTop}>🕋</div>
+                  <div style={styles.needleBottom} />
+                </div>
+
+                {/* Center dot */}
+                <div style={styles.compassCenter} />
+              </div>
+
+              {/* Info */}
+              <div style={styles.qiblaInfo}>
+                <div style={styles.qiblaAngle}>{Math.round(qiblaAngle)}°</div>
+                <div style={styles.qiblaLabel}>from North toward Makkah</div>
+              </div>
+
+              {locationName && (
+                <div style={styles.qiblaLocation}>
+                  <MapPin size={13} color={GOLD} />
+                  <span>From {locationName}</span>
+                </div>
+              )}
+
+              {!qiblaPermission && (
+                <div style={styles.qiblaHint}>
+                  💡 Rotate your phone slowly to calibrate the compass. Hold it flat and level.
+                </div>
+              )}
+
+              <div style={styles.qiblaDisclaimer}>
+                Point the 🕋 symbol toward the direction you face in prayer. 
+                Always verify with local mosque guidance.
+              </div>
+            </>
+          )}
+        </div>
+      )}
       {/* ===== AI COMPANION TAB ===== */}
       {activeTab === "ai" && (
         <div style={styles.aiPage}>
