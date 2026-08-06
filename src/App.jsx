@@ -868,6 +868,12 @@ IMPORTANT RULES:
           🤖 AI
         </button>
         <button
+          style={{ ...styles.tab, ...(activeTab === "tasbih" ? styles.tabActive : {}) }}
+          onClick={() => setActiveTab("tasbih")}
+        >
+          📿 Tasbih
+        </button>
+        <button
           style={{ ...styles.tab, ...(activeTab === "qibla" ? styles.tabActive : {}) }}
           onClick={() => { setActiveTab("qibla"); startQiblaCompass(); }}
         >
