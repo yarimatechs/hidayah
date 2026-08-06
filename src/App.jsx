@@ -533,11 +533,18 @@ export default function App() {
   const [calendarData, setCalendarData] = useState(null);
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarError, setCalendarError] = useState("");
+
+  // Tasbih state
+  const [tasbihCount, setTasbihCount] = useState(0);
+  const [tasbihTarget, setTasbihTarget] = useState(33);
+  const [tasbihCompleted, setTasbihCompleted] = useState(0);
+
   // Qibla state
   const [qiblaAngle, setQiblaAngle] = useState(null);
   const [deviceHeading, setDeviceHeading] = useState(0);
   const [qiblaPermission, setQiblaPermission] = useState(false);
   const [qiblaError, setQiblaError] = useState("");
+
   // AI Companion state
   const [messages, setMessages] = useState([
     {
