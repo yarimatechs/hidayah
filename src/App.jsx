@@ -1027,6 +1027,108 @@ IMPORTANT RULES:
           </div>
         </div>
       )}
+      {/* ===== TASBIH TAB ===== */}
+      {activeTab === "tasbih" && (
+        <div style={styles.content}>
+          <div style={styles.azkarTitle}>التسبيح</div>
+          <div style={styles.azkarSubtitle}>Digital Tasbih Counter</div>
+
+          {/* Target selector */}
+          <div style={styles.tasbihTargets}>
+            {[33, 99, 100, 1000].map((t) => (
+              <button
+                key={t}
+                style={{
+                  ...styles.tasbihTargetBtn,
+                  ...(tasbihTarget === t ? styles.tasbihTargetBtnActive : {}),
+                }}
+                onClick={() => { setTasbihTarget(t); setTasbihCount(0); setTasbihCompleted(0); }}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+
+          {/* Completed rounds */}
+          {tasbihCompleted > 0 && (
+            <div style={styles.tasbihCompleted}>
+              ✅ Completed {tasbihCompleted} round{tasbihCompleted > 1 ? "s" : ""} of {tasbihTarget}
+            </div>
+          )}
+
+          {/* Count display */}
+          <div style={styles.tasbihCountWrap}>
+            <div style={styles.tasbihCount}>
+              {tasbihCount}
+            </div>
+            <div style={styles.tasbihCountLabel}>/ {tasbihTarget}</div>
+          </div>
+
+          {/* Progress ring */}
+          <div style={styles.tasbihRingWrap}>
+            <svg width={220} height={220} style={{ display: "block", margin: "0 auto" }}>
+              <circle cx={110} cy={110} r={90} fill="none" stroke={CARD} strokeWidth={12} />
+              <circle
+                cx={110} cy={110} r={90}
+                fill="none"
+                stroke={tasbihCount >= tasbihTarget ? GREEN : GOLD}
+                strokeWidth={12}
+                strokeDasharray={`${2 * Math.PI * 90 * Math.min(tasbihCount / tasbihTarget, 1)} ${2 * Math.PI * 90}`}
+                strokeLinecap="round"
+                transform="rotate(-90 110 110)"
+                style={{ transition: "stroke-dasharray 0.2s ease" }}
+              />
+            </svg>
+
+            {/* Big tap button in center */}
+            <button
+              style={{
+                ...styles.tasbihBtn,
+                ...(tasbihCount >= tasbihTarget ? styles.tasbihBtnDone : {}),
+              }}
+              onClick={() => {
+                if (tasbihCount >= tasbihTarget) {
+                  setTasbihCompleted((prev) => prev + 1);
+                  setTasbihCount(0);
+                } else {
+                  setTasbihCount((prev) => prev + 1);
+                }
+              }}
+            >
+              {tasbihCount >= tasbihTarget ? (
+                <div style={styles.tasbihBtnText}>🔄<br/>Next</div>
+              ) : (
+                <div style={styles.tasbihBtnText}>سُبْحَانَ اللَّه<br/><span style={{ fontSize: 12, opacity: 0.8 }}>Tap to count</span></div>
+              )}
+            </button>
+          </div>
+
+          {/* Reset */}
+          <button
+            style={styles.tasbihReset}
+            onClick={() => { setTasbihCount(0); setTasbihCompleted(0); }}
+          >
+            <RotateCcw size={15} /> Reset
+          </button>
+
+          {/* Common tasbih guide */}
+          <div style={styles.tasbihGuide}>
+            <div style={styles.calSectionTitle}>📖 After Salah</div>
+            {[
+              { text: "سُبْحَانَ اللَّهِ", translit: "SubhanAllah", count: 33, meaning: "Glory be to Allah" },
+              { text: "الْحَمْدُ لِلَّهِ", translit: "Alhamdulillah", count: 33, meaning: "All praise to Allah" },
+              { text: "اللَّهُ أَكْبَرُ", translit: "Allahu Akbar", count: 33, meaning: "Allah is the Greatest" },
+            ].map((t, i) => (
+              <div key={i} style={styles.tasbihGuideRow}>
+                <div style={styles.tasbihGuideArabic}>{t.text}</div>
+                <div style={styles.tasbihGuideTranslit}>{t.translit}</div>
+                <div style={styles.tasbihGuideMeaning}>{t.meaning}</div>
+                <div style={styles.tasbihGuideCount}>×{t.count}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {/* ===== QIBLA COMPASS TAB ===== */}
       {activeTab === "qibla" && (
         <div style={styles.content}>
