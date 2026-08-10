@@ -884,7 +884,18 @@ IMPORTANT RULES:
       {/* ===== PRAYER TIMES TAB ===== */}
       {activeTab === "prayer" && (
         <div style={styles.content}>
-          {timings && <div style={styles.greeting}>{getGreeting(timings)}</div>}
+          {timings && (
+            <>
+              <div style={styles.greetingRow}>
+                <span style={styles.greetingText}>{getGreeting(timings)}</span>
+                <span style={styles.greetingDot}>·</span>
+                <span style={styles.greetingDate}>
+                  {gregorian && `${gregorian.weekday.en}, ${gregorian.day} ${gregorian.month.en}`}
+                </span>
+              </div>
+              <div style={styles.greetingDivider} />
+            </>
+          )}
 
           {error && (
             <div style={styles.errorCard}>
