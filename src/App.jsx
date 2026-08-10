@@ -897,8 +897,28 @@ IMPORTANT RULES:
             </>
           )}
 
-          {error && (
-            <div style={styles.errorCard}>
+          {/* Quick shortcuts */}
+          {timings && (
+            <div style={styles.shortcutsRow}>
+              {[
+                { emoji: "📖", label: "Quran", tab: "quran", bg: "#1A5C5A" },
+                { emoji: "📿", label: "Azkar", tab: "azkar", bg: "#3A1A5C" },
+                { emoji: "📿", label: "Tasbih", tab: "tasbih", bg: "#5C4A1A" },
+                { emoji: "🧭", label: "Qibla", tab: "qibla", bg: "#1A5C2A" },
+              ].map((s) => (
+                <button
+                  key={s.tab}
+                  style={styles.shortcutBtn}
+                  onClick={() => setActiveTab(s.tab)}
+                >
+                  <div style={{ ...styles.shortcutCircle, background: s.bg }}>
+                    <span style={styles.shortcutEmoji}>{s.emoji}</span>
+                  </div>
+                  <span style={styles.shortcutLabel}>{s.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
               <AlertCircle size={18} color="#E8601C" />
               <span>{error}</span>
             </div>
