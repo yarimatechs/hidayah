@@ -919,6 +919,8 @@ IMPORTANT RULES:
               ))}
             </div>
           )}
+          {error && (
+            <div style={styles.errorCard}>
               <AlertCircle size={18} color="#E8601C" />
               <span>{error}</span>
             </div>
