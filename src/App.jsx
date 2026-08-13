@@ -811,7 +811,15 @@ IMPORTANT RULES:
   return (
     <div style={styles.page}>
       <GlobalStyles />
-
+      {/* AI Search Bar */}
+      <button style={styles.aiSearchBar} onClick={() => setActiveTab("ai")}>
+        <div style={styles.aiSearchIcon}>🤖</div>
+        <div style={styles.aiSearchText}>
+          <div style={styles.aiSearchHint}>What do we say at the time of the Adhan?</div>
+          <div style={styles.aiSearchSub}>Ask Hidayah AI</div>
+        </div>
+        <div style={styles.aiSearchArrow}>→</div>
+      </button>
       {/* Header */}
       <div style={styles.header}>
         <div style={styles.headerTop}>
