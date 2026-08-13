@@ -933,28 +933,6 @@ IMPORTANT RULES:
               </div>
             </div>
           )}
-          {/* Quick shortcuts */}
-          {timings && (
-            <div style={styles.shortcutsRow}>
-              {[
-                { emoji: "📖", label: "Quran", tab: "quran", bg: "#1A5C5A" },
-                { emoji: "📿", label: "Azkar", tab: "azkar", bg: "#3A1A5C" },
-                { emoji: "📿", label: "Tasbih", tab: "tasbih", bg: "#5C4A1A" },
-                { emoji: "🧭", label: "Qibla", tab: "qibla", bg: "#1A5C2A" },
-              ].map((s) => (
-                <button
-                  key={s.tab}
-                  style={styles.shortcutBtn}
-                  onClick={() => setActiveTab(s.tab)}
-                >
-                  <div style={{ ...styles.shortcutCircle, background: s.bg }}>
-                    <span style={styles.shortcutEmoji}>{s.emoji}</span>
-                  </div>
-                  <span style={styles.shortcutLabel}>{s.label}</span>
-                </button>
-              ))}
-            </div>
-          )}
 
           {!loading && !error && timings && (
             <div style={styles.prayerList}>
