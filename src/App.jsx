@@ -752,7 +752,6 @@ export default function App() {
     setMessages(newMessages);
     setAiInput("");
     setAiLoading(true);
-    console.log("API KEY:", import.meta.env.VITE_ANTHROPIC_KEY);
 
     try {
       const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -954,8 +953,6 @@ IMPORTANT RULES:
               ))}
             </div>
           )}
-          {!loading && !error && timings && (
-            <div style={styles.prayerList}>
           {!loading && !error && timings && (
             <div style={styles.prayerList}>
               {PRAYERS.map((prayer) => {
