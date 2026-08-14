@@ -935,10 +935,10 @@ IMPORTANT RULES:
           {timings && (
             <div style={styles.shortcutsRow}>
               {[
-                { emoji: "📖", label: "Quran", tab: "quran", bg: "#1A5C5A" },
-                { emoji: "📿", label: "Azkar", tab: "azkar", bg: "#3A1A5C" },
-                { emoji: "📿", label: "Tasbih", tab: "tasbih", bg: "#5C4A1A" },
-                { emoji: "🧭", label: "Qibla", tab: "qibla", bg: "#1A5C2A" },
+                { emoji: "📖", label: "Quran", tab: "quran", bg: "radial-gradient(circle at 35% 35%, #2A8C8A, #0D3A38)" },
+                { emoji: "📿", label: "Azkar", tab: "azkar", bg: "radial-gradient(circle at 35% 35%, #5A2A8C, #1A0A3A)" },
+                { emoji: "📿", label: "Tasbih", tab: "tasbih", bg: "radial-gradient(circle at 35% 35%, #8C6A1A, #3A2A0A)" },
+                { emoji: "🧭", label: "Qibla", tab: "qibla", bg: "radial-gradient(circle at 35% 35%, #2A8C4A, #0A3A1A)" },
               ].map((s) => (
                 <button
                   key={s.tab}
@@ -1584,8 +1584,8 @@ const styles = {
   greetingDivider: { height: 1, background: `linear-gradient(to right, transparent, ${GOLD}44, transparent)`, marginBottom: 16 },
   shortcutsRow: { display: "flex", justifyContent: "space-around", marginBottom: 20 },
   shortcutBtn: { display: "flex", flexDirection: "column", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer" },
-  shortcutCircle: { width: 52, height: 52, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" },
-  shortcutEmoji: { fontSize: 22 },
+  shortcutCircle: { width: 58, height: 58, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" },
+  shortcutEmoji: { fontSize: 26 },
   shortcutLabel: { fontSize: 11.5, color: MUTED, fontWeight: 600 },
   aiSearchBar: { display: "flex", alignItems: "center", gap: 12, background: CARD, border: `1px solid ${GOLD}33`, borderRadius: 14, padding: "12px 16px", margin: "12px 16px 0", width: "calc(100% - 32px)", cursor: "pointer", textAlign: "left" },
   aiSearchIcon: { fontSize: 22, flexShrink: 0 },
