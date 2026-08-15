@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { MapPin, Clock, AlertCircle, ChevronLeft, RotateCcw, BookOpen, Calendar, MessageCircle, Send } from "lucide-react";
+import { MapPin, Clock, AlertCircle, ChevronLeft, RotateCcw, BookOpen, Calendar, MessageCircle, Send, Moon, Sunrise, Sun, CloudSun, Sunset, MoonStar, Sparkles, Compass, Bot, Landmark, CircleDot } from "lucide-react";
 
 // ---------- Prayer Constants ----------
 const PRAYERS = ["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"];
@@ -9,9 +9,13 @@ const PRAYER_ARABIC = {
   Asr: "العصر", Maghrib: "المغرب", Isha: "العشاء",
 };
 
-const PRAYER_EMOJI = {
-  Fajr: "🌙", Sunrise: "🌅", Dhuhr: "☀️",
-  Asr: "🌤", Maghrib: "🌇", Isha: "🌃",
+const PRAYER_ICONS = {
+  Fajr: Moon,
+  Sunrise: Sunrise,
+  Dhuhr: Sun,
+  Asr: CloudSun,
+  Maghrib: Sunset,
+  Isha: MoonStar,
 };
 
 // ---------- Full Azkar Data ----------
@@ -922,7 +926,7 @@ IMPORTANT RULES:
             <div style={styles.countdownCard}>
               <div style={styles.countdownLabel}>Next Prayer</div>
               <div style={styles.countdownPrayer}>
-                {PRAYER_EMOJI[nextPrayer.name]} {nextPrayer.name}
+                {(() => { const Icon = PRAYER_ICONS[nextPrayer.name]; return Icon ? <Icon size={20} color={GOLD_LIGHT} style={{display:"inline",verticalAlign:"middle",marginRight:6}} /> : null; })()} {nextPrayer.name}
                 <span style={styles.countdownArabic}> {PRAYER_ARABIC[nextPrayer.name]}</span>
               </div>
               <div style={styles.countdownTimer}>{countdown}</div>
@@ -968,7 +972,7 @@ IMPORTANT RULES:
                     }}
                   >
                     <div style={styles.prayerLeft}>
-                      <span style={styles.prayerEmoji}>{PRAYER_EMOJI[prayer]}</span>
+                      {(() => { const Icon = PRAYER_ICONS[prayer]; return <Icon size={22} color={GOLD} />; })()}
                       <div>
                         <div style={styles.prayerName}>{prayer}</div>
                         <div style={styles.prayerArabic}>{PRAYER_ARABIC[prayer]}</div>
