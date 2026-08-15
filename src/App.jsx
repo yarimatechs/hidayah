@@ -939,10 +939,10 @@ IMPORTANT RULES:
           {timings && (
             <div style={styles.shortcutsRow}>
               {[
-                { emoji: "📖", label: "Quran", tab: "quran", bg: "radial-gradient(circle at 35% 35%, #2A8C8A, #0D3A38)" },
-                { emoji: "📿", label: "Azkar", tab: "azkar", bg: "radial-gradient(circle at 35% 35%, #5A2A8C, #1A0A3A)" },
-                { emoji: "📿", label: "Tasbih", tab: "tasbih", bg: "radial-gradient(circle at 35% 35%, #8C6A1A, #3A2A0A)" },
-                { emoji: "🧭", label: "Qibla", tab: "qibla", bg: "radial-gradient(circle at 35% 35%, #2A8C4A, #0A3A1A)" },
+                { icon: BookOpen, label: "Quran", tab: "quran", bg: "radial-gradient(circle at 35% 35%, #2A8C8A, #0D3A38)" },
+                { icon: Sparkles, label: "Azkar", tab: "azkar", bg: "radial-gradient(circle at 35% 35%, #5A2A8C, #1A0A3A)" },
+                { icon: CircleDot, label: "Tasbih", tab: "tasbih", bg: "radial-gradient(circle at 35% 35%, #8C6A1A, #3A2A0A)" },
+                { icon: Compass, label: "Qibla", tab: "qibla", bg: "radial-gradient(circle at 35% 35%, #2A8C4A, #0A3A1A)" },
               ].map((s) => (
                 <button
                   key={s.tab}
@@ -950,7 +950,7 @@ IMPORTANT RULES:
                   onClick={() => setActiveTab(s.tab)}
                 >
                   <div style={{ ...styles.shortcutCircle, background: s.bg }}>
-                    <span style={styles.shortcutEmoji}>{s.emoji}</span>
+                    <s.icon size={24} color="#fff" />
                   </div>
                   <span style={styles.shortcutLabel}>{s.label}</span>
                 </button>
