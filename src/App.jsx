@@ -924,6 +924,15 @@ IMPORTANT RULES:
               </div>
             </div>
           )}
+          {/* See all prayers link */}
+          {timings && (
+            <button
+              style={styles.seeAllPrayersBtn}
+              onClick={() => setActiveTab("prayerTimes")}
+            >
+              View all prayer times →
+            </button>
+          )}
           {/* Quick shortcuts */}
           {timings && (
             <div style={styles.shortcutsWrap}>
@@ -1070,6 +1079,81 @@ IMPORTANT RULES:
               );
             })}
           </div>
+        </div>
+      )}
+      {/* ===== PRAYER TIMES SCREEN ===== */}
+      {activeTab === "prayerTimes" && (
+        <div style={styles.content}>
+          <ScreenHeader title="Prayer Times" onBack={() => setActiveTab("prayer")} />
+
+          {error && (
+            <div style={styles.errorCard}>
+              <AlertCircle size={18} color="#E8601C" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {loading && !error && (
+            <div style={styles.loadingWrap}>
+              <div style={styles.loadingDot} />
+              <div style={styles.loadingText}>Fetching prayer times…</div>
+            </div>
+          )}
+
+          {!loading && !error && timings && (
+            <>
+              {/* Date header */}
+              <div style={styles.prayerTimesDate}>
+                {hijri && <div style={styles.calHijriDate}>{hijri.day} {hijri.month.en} {hijri.year} AH</div>}
+                {gregorian && <div style={styles.calGreg}>{gregorian.weekday.en}, {gregorian.day} {gregorian.month.en} {gregorian.year}</div>}
+                {locationName && (
+                  <div style={styles.prayerTimesLocation}>
+                    <MapPin size={12} color={GOLD} />
+                    <span>{locationName}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Prayer list */}
+              <div style={styles.prayerList}>
+                {PRAYERS.map((prayer) => {
+                  const isNext = nextPrayer?.name === prayer;
+                  const isPassed = parseTime(timings[prayer]) < now && !isNext;
+                  const Icon = PRAYER_ICONS[prayer];
+                  return (
+                    <div
+                      key={prayer}
+                      style={{
+                        ...styles.prayerRow,
+                        ...(isNext ? styles.prayerRowNext : {}),
+                        ...(isPassed ? styles.prayerRowPassed : {}),
+                      }}
+                    >
+                      <div style={styles.prayerLeft}>
+                        {Icon && <Icon size={22} color={GOLD} />}
+                        <div>
+                          <div style={styles.prayerName}>{prayer}</div>
+                          <div style={styles.prayerArabic}>{PRAYER_ARABIC[prayer]}</div>
+                        </div>
+                      </div>
+                      <div style={styles.prayerRight}>
+                        <div style={{ ...styles.prayerTime, ...(isNext ? styles.prayerTimeNext : {}) }}>
+                          {formatTime(timings[prayer])}
+                        </div>
+                        {isNext && <div style={styles.nextBadge}>Next</div>}
+                        {isPassed && <div style={styles.passedBadge}>✓</div>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={styles.footer}>
+                <div style={styles.footerText}>بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ</div>
+                <div style={styles.footerSub}>Prayer times via Aladhan API · Muslim World League</div>
+              </div>
+            </>
+          )}
         </div>
       )}
       {/* ===== TASBIH TAB ===== */}
@@ -1628,6 +1712,9 @@ const styles = {
   prayerTimeNext: { color: GOLD_LIGHT },
   nextBadge: { fontSize: 11, background: GOLD, color: MIDNIGHT, padding: "2px 7px", borderRadius: 5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 3 },
   passedBadge: { fontSize: 16, color: GREEN, marginTop: 2 },
+  prayerTimesDate: { textAlign: "center", padding: "16px 0 20px", borderBottom: `1px solid ${CARD}`, marginBottom: 16 },
+  prayerTimesLocation: { display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontSize: 12, color: MUTED, marginTop: 6 },
+  seeAllPrayersBtn: { display: "block", margin: "12px auto 4px", background: "none", border: "none", color: GOLD, fontSize: 13, fontWeight: 600, cursor: "pointer", letterSpacing: "0.03em" },
   footer: { textAlign: "center", padding: "32px 0 0" },
   footerText: { fontFamily: FONT_ARABIC, fontSize: 20, color: GOLD, marginBottom: 6 },
   footerSub: { fontSize: 12, color: MUTED, fontStyle: "italic" },
