@@ -509,6 +509,24 @@ const HIJRI_MONTHS = [
   "Ramadan", "Shawwal", "Dhul Qa'dah", "Dhul Hijjah",
 ];
 
+// ---------- Screen Header ----------
+function ScreenHeader({ title, onBack }) {
+  return (
+    <div style={screenHeaderStyles.wrap}>
+      <button style={screenHeaderStyles.backBtn} onClick={onBack}>
+        <ChevronLeft size={20} color="#C9A84C" />
+      </button>
+      <span style={screenHeaderStyles.title}>{title}</span>
+    </div>
+  );
+}
+
+const screenHeaderStyles = {
+  wrap: { display: "flex", alignItems: "center", gap: 10, padding: "14px 16px 10px", borderBottom: "1px solid #1A2F4A" },
+  backBtn: { width: 34, height: 34, borderRadius: "50%", background: "#1A2F4A", border: "1px solid #C9A84C44", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 },
+  title: { fontSize: 17, fontWeight: 700, color: "#E8E0CC", fontFamily: "-apple-system, 'Segoe UI', sans-serif" },
+};
+
 // ---------- Main App ----------
 export default function App() {
   const [location, setLocation] = useState(null);
@@ -954,6 +972,8 @@ IMPORTANT RULES:
                 { icon: Sparkles, label: "Azkar", tab: "azkar", bg: "radial-gradient(circle at 35% 35%, #5A2A8C, #1A0A3A)" },
                 { icon: CircleDot, label: "Tasbih", tab: "tasbih", bg: "radial-gradient(circle at 35% 35%, #8C6A1A, #3A2A0A)" },
                 { icon: Compass, label: "Qibla", tab: "qibla", bg: "radial-gradient(circle at 35% 35%, #2A8C4A, #0A3A1A)" },
+                { icon: Calendar, label: "Calendar", tab: "calendar", bg: "radial-gradient(circle at 35% 35%, #1A4A8C, #0A1A3A)" },
+                { icon: null, label: "AI", tab: "ai", bg: "radial-gradient(circle at 35% 35%, #8C1A5C, #3A0A2A)" },
               ].map((s) => (
                 <button
                   key={s.tab}
@@ -961,7 +981,14 @@ IMPORTANT RULES:
                   onClick={() => setActiveTab(s.tab)}
                 >
                   <div style={{ ...styles.shortcutCircle, background: s.bg }}>
-                    <s.icon size={24} color="#fff" />
+                    {s.icon ? (
+                      <s.icon size={22} color="#fff" />
+                    ) : (
+                      <div style={styles.aiShortcutIcon}>
+                        <Moon size={22} color="#fff" />
+                        <span style={styles.aiShortcutText}>AI</span>
+                      </div>
+                    )}
                   </div>
                   <span style={styles.shortcutLabel}>{s.label}</span>
                 </button>
@@ -1012,6 +1039,7 @@ IMPORTANT RULES:
       {/* ===== AZKAR TAB ===== */}
       {activeTab === "azkar" && !selectedCategory && (
         <div style={styles.content}>
+          <ScreenHeader title="Azkar" onBack={() => setActiveTab("prayer")} />
           <div style={styles.azkarTitle}>Daily Adhkar & Duas</div>
           <div style={styles.azkarSubtitle}>Tap a category to begin</div>
           <div style={styles.categoryGrid}>
@@ -1084,6 +1112,7 @@ IMPORTANT RULES:
       {/* ===== TASBIH TAB ===== */}
       {activeTab === "tasbih" && (
         <div style={styles.content}>
+          <ScreenHeader title="Tasbih" onBack={() => setActiveTab("prayer")} />
           <div style={styles.azkarTitle}>التسبيح</div>
           <div style={styles.azkarSubtitle}>Digital Tasbih Counter</div>
 
@@ -1186,6 +1215,7 @@ IMPORTANT RULES:
       {/* ===== QIBLA COMPASS TAB ===== */}
       {activeTab === "qibla" && (
         <div style={styles.content}>
+          <ScreenHeader title="Qibla" onBack={() => setActiveTab("prayer")} />
           <div style={styles.azkarTitle}>القبلة</div>
           <div style={styles.azkarSubtitle}>Qibla Direction — Toward the Ka'bah</div>
 
@@ -1268,6 +1298,7 @@ IMPORTANT RULES:
       {/* ===== AI COMPANION TAB ===== */}
       {activeTab === "ai" && (
         <div style={styles.aiPage}>
+          <ScreenHeader title="Hidayah AI" onBack={() => setActiveTab("prayer")} />
           <div style={styles.aiHeader}>
             <div style={styles.aiTitle}>🤖 Hidayah AI</div>
             <div style={styles.aiSubtitle}>Ask anything about Islam — sourced answers from Quran & Sunnah</div>
@@ -1335,6 +1366,7 @@ IMPORTANT RULES:
       {/* ===== CALENDAR TAB ===== */}
       {activeTab === "calendar" && (
         <div style={styles.content}>
+          <ScreenHeader title="Islamic Calendar" onBack={() => setActiveTab("prayer")} />
           <div style={styles.azkarTitle}>التقويم الهجري</div>
           <div style={styles.azkarSubtitle}>Islamic Hijri Calendar</div>
 
@@ -1444,6 +1476,7 @@ IMPORTANT RULES:
       {/* ===== QURAN TAB — Surah List ===== */}
       {activeTab === "quran" && !selectedSurah && (
         <div style={styles.content}>
+          <ScreenHeader title="Quran" onBack={() => setActiveTab("prayer")} />
           <div style={styles.azkarTitle}>القرآن الكريم</div>
           <div style={styles.azkarSubtitle}>The Noble Quran — 114 Surahs</div>
 
@@ -1597,11 +1630,13 @@ const styles = {
   greetingDot: { color: MUTED, fontSize: 13 },
   greetingDate: { fontSize: 13, color: MUTED },
   greetingDivider: { height: 1, background: `linear-gradient(to right, transparent, ${GOLD}44, transparent)`, marginBottom: 16 },
-  shortcutsRow: { display: "flex", justifyContent: "space-around", marginBottom: 20 },
-  shortcutBtn: { display: "flex", flexDirection: "column", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer" },
+  shortcutsRow: { display: "flex", gap: 18, marginBottom: 20, overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none", padding: "0 4px 4px" },
+  shortcutBtn: { display: "flex", flexDirection: "column", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", flexShrink: 0 },
   shortcutCircle: { width: 58, height: 58, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" },
   shortcutEmoji: { fontSize: 26 },
   shortcutLabel: { fontSize: 11.5, color: MUTED, fontWeight: 600 },
+  aiShortcutIcon: { position: "relative", display: "flex", alignItems: "center", justifyContent: "center" },
+  aiShortcutText: { position: "absolute", fontSize: 8, fontWeight: 700, color: "#fff", letterSpacing: "0.05em" },
   aiSearchBar: { display: "flex", alignItems: "center", gap: 12, background: CARD, border: `1px solid ${GOLD}33`, borderRadius: 14, padding: "12px 16px", margin: "12px 16px 0", width: "calc(100% - 32px)", cursor: "pointer", textAlign: "left" },
   aiSearchIcon: { fontSize: 22, flexShrink: 0 },
   aiSearchText: { flex: 1, minWidth: 0 },
