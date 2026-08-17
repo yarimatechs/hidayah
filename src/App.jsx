@@ -718,6 +718,12 @@ export default function App() {
     return ((θ * 180) / Math.PI + 360) % 360;
   }
 
+  useEffect(() => {
+    if (activeTab === "qibla" && qiblaAngle === null) {
+      startQiblaCompass();
+    }
+  }, [activeTab, location]);
+
   function startQiblaCompass() {
     if (!location) {
       setQiblaError("Location not detected yet. Please wait.");
@@ -862,52 +868,6 @@ IMPORTANT RULES:
             <span style={styles.dateGreg}>{gregorian.day} {gregorian.month.en} {gregorian.year}</span>
           </div>
         )}
-      </div>
-
-      {/* Tabs */}
-      <div style={styles.tabs}>
-        <button
-          style={{ ...styles.tab, ...(activeTab === "prayer" ? styles.tabActive : {}) }}
-          onClick={() => setActiveTab("prayer")}
-        >
-          🕌 Prayer
-        </button>
-        <button
-          style={{ ...styles.tab, ...(activeTab === "azkar" ? styles.tabActive : {}) }}
-          onClick={() => { setActiveTab("azkar"); setSelectedCategory(null); }}
-        >
-          📿 Azkar
-        </button>
-        <button
-          style={{ ...styles.tab, ...(activeTab === "quran" ? styles.tabActive : {}) }}
-          onClick={() => { setActiveTab("quran"); setSelectedSurah(null); setSurahSearch(""); }}
-        >
-          📖 Quran
-        </button>
-        <button
-          style={{ ...styles.tab, ...(activeTab === "calendar" ? styles.tabActive : {}) }}
-          onClick={() => setActiveTab("calendar")}
-        >
-          📅 Calendar
-        </button>
-        <button
-          style={{ ...styles.tab, ...(activeTab === "ai" ? styles.tabActive : {}) }}
-          onClick={() => setActiveTab("ai")}
-        >
-          🤖 AI
-        </button>
-        <button
-          style={{ ...styles.tab, ...(activeTab === "tasbih" ? styles.tabActive : {}) }}
-          onClick={() => setActiveTab("tasbih")}
-        >
-          📿 Tasbih
-        </button>
-        <button
-          style={{ ...styles.tab, ...(activeTab === "qibla" ? styles.tabActive : {}) }}
-          onClick={() => { setActiveTab("qibla"); startQiblaCompass(); }}
-        >
-          🧭 Qibla
-        </button>
       </div>
 
       {/* ===== PRAYER TIMES TAB ===== */}
@@ -1624,9 +1584,6 @@ const styles = {
   dateHijri: { fontSize: 12.5, color: GOLD },
   dateSep: { color: MUTED, fontSize: 10 },
   dateGreg: { fontSize: 12.5, color: MUTED },
-  tabs: { display: "flex", background: DEEP, borderBottom: `1px solid ${CARD}` },
-  tab: { flex: 1, padding: "13px 8px", background: "none", color: MUTED, fontSize: 13.5, fontWeight: 600, borderBottom: "2px solid transparent" },
-  tabActive: { color: GOLD, borderBottom: `2px solid ${GOLD}` },
   content: { padding: "16px 16px 60px" },
   greetingRow: { display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" },
   greetingText: { fontSize: 15, color: GOLD_LIGHT, fontStyle: "italic" },
