@@ -966,6 +966,7 @@ IMPORTANT RULES:
           )}
           {/* Quick shortcuts */}
           {timings && (
+            <div style={styles.shortcutsWrap}>
             <div style={styles.shortcutsRow}>
               {[
                 { icon: BookOpen, label: "Quran", tab: "quran", bg: "radial-gradient(circle at 35% 35%, #2A8C8A, #0D3A38)" },
@@ -993,6 +994,8 @@ IMPORTANT RULES:
                   <span style={styles.shortcutLabel}>{s.label}</span>
                 </button>
               ))}
+            </div>
+            <div style={styles.shortcutsFade} />
             </div>
           )}
           {!loading && !error && timings && (
@@ -1630,7 +1633,9 @@ const styles = {
   greetingDot: { color: MUTED, fontSize: 13 },
   greetingDate: { fontSize: 13, color: MUTED },
   greetingDivider: { height: 1, background: `linear-gradient(to right, transparent, ${GOLD}44, transparent)`, marginBottom: 16 },
-  shortcutsRow: { display: "flex", gap: 18, marginBottom: 20, overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none", padding: "0 4px 4px" },
+  shortcutsWrap: { position: "relative", marginBottom: 20 },
+  shortcutsRow: { display: "flex", gap: 18, overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none", padding: "0 4px 4px" },
+  shortcutsFade: { position: "absolute", top: 0, right: 0, bottom: 4, width: 36, background: `linear-gradient(to right, transparent, ${MIDNIGHT})`, pointerEvents: "none" },
   shortcutBtn: { display: "flex", flexDirection: "column", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", flexShrink: 0 },
   shortcutCircle: { width: 58, height: 58, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" },
   shortcutEmoji: { fontSize: 26 },
