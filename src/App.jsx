@@ -967,44 +967,6 @@ IMPORTANT RULES:
             <div style={styles.shortcutsFade} />
             </div>
           )}
-          {!loading && !error && timings && (
-            <div style={styles.prayerList}>
-              {PRAYERS.map((prayer) => {
-                const isNext = nextPrayer?.name === prayer;
-                const isPassed = parseTime(timings[prayer]) < now && !isNext;
-                return (
-                  <div
-                    key={prayer}
-                    style={{
-                      ...styles.prayerRow,
-                      ...(isNext ? styles.prayerRowNext : {}),
-                      ...(isPassed ? styles.prayerRowPassed : {}),
-                    }}
-                  >
-                    <div style={styles.prayerLeft}>
-                      {(() => { const Icon = PRAYER_ICONS[prayer]; return <Icon size={22} color={GOLD} />; })()}
-                      <div>
-                        <div style={styles.prayerName}>{prayer}</div>
-                        <div style={styles.prayerArabic}>{PRAYER_ARABIC[prayer]}</div>
-                      </div>
-                    </div>
-                    <div style={styles.prayerRight}>
-                      <div style={{ ...styles.prayerTime, ...(isNext ? styles.prayerTimeNext : {}) }}>
-                        {formatTime(timings[prayer])}
-                      </div>
-                      {isNext && <div style={styles.nextBadge}>Next</div>}
-                      {isPassed && <div style={styles.passedBadge}>✓</div>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          <div style={styles.footer}>
-            <div style={styles.footerText}>بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ</div>
-            <div style={styles.footerSub}>Prayer times via Aladhan API · Method: Muslim World League</div>
-          </div>
         </div>
       )}
 
