@@ -1,5 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
-import { MapPin, Clock, AlertCircle, ChevronLeft, RotateCcw, BookOpen, Calendar, MessageCircle, Send } from "lucide-react";
+import { MapPin, Clock, AlertCircle, ChevronLeft, RotateCcw, BookOpen, Calendar, Send, Moon, Sunrise, Sun, CloudSun, Sunset, MoonStar, Sparkles, Compass, Bot, Landmark, CircleDot, Navigation } from "lucide-react";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import L from "leaflet";
+
+// Fix Leaflet's default marker icons (broken by default under Vite/bundlers)
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
 
 // ---------- Prayer Constants ----------
 const PRAYERS = ["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"];
@@ -9,9 +19,13 @@ const PRAYER_ARABIC = {
   Asr: "العصر", Maghrib: "المغرب", Isha: "العشاء",
 };
 
-const PRAYER_EMOJI = {
-  Fajr: "🌙", Sunrise: "🌅", Dhuhr: "☀️",
-  Asr: "🌤", Maghrib: "🌇", Isha: "🌃",
+const PRAYER_ICONS = {
+  Fajr: Moon,
+  Sunrise: Sunrise,
+  Dhuhr: Sun,
+  Asr: CloudSun,
+  Maghrib: Sunset,
+  Isha: MoonStar,
 };
 
 // ---------- Full Azkar Data ----------
@@ -477,11 +491,11 @@ function getGreeting(timings) {
   const asr = parseTime(timings.Asr);
   const maghrib = parseTime(timings.Maghrib);
   const isha = parseTime(timings.Isha);
-  if (now >= fajr && now < dhuhr) return "Sabāḥ al-khayr 🌅";
-  if (now >= dhuhr && now < asr) return "Muẓhir mubārak ☀️";
-  if (now >= asr && now < maghrib) return "ʿAsr mubārak 🌤";
-  if (now >= maghrib && now < isha) return "Masāʾ al-khayr 🌇";
-  return "Laylah mubārakah 🌙";
+  if (now >= fajr && now < dhuhr) return "Sabāḥ al-khayr";
+  if (now >= dhuhr && now < asr) return "Muẓhir mubārak";
+  if (now >= asr && now < maghrib) return "ʿAsr mubārak";
+  if (now >= maghrib && now < isha) return "Masāʾ al-khayr";
+  return "Laylah mubārakah";
 }
 
 // ---------- Islamic Events ----------
@@ -504,6 +518,49 @@ const HIJRI_MONTHS = [
   "Jumada al-Ula", "Jumada al-Thani", "Rajab", "Sha'ban",
   "Ramadan", "Shawwal", "Dhul Qa'dah", "Dhul Hijjah",
 ];
+
+const mosqueIcon = new L.Icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+const userIcon = new L.Icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+// ---------- Map re-center helper ----------
+function RecenterMap({ lat, lon }) {
+  const map = useMap();
+  useEffect(() => { map.setView([lat, lon], 14); }, [lat, lon, map]);
+  return null;
+}
+
+// ---------- Screen Header ----------
+function ScreenHeader({ title, onBack }) {
+  return (
+    <div style={screenHeaderStyles.wrap}>
+      <button style={screenHeaderStyles.backBtn} onClick={onBack}>
+        <ChevronLeft size={20} color="#C9A84C" />
+      </button>
+      <span style={screenHeaderStyles.title}>{title}</span>
+    </div>
+  );
+}
+
+const screenHeaderStyles = {
+  wrap: { display: "flex", alignItems: "center", gap: 10, padding: "14px 16px 10px", borderBottom: "1px solid #1A2F4A" },
+  backBtn: { width: 34, height: 34, borderRadius: "50%", background: "#1A2F4A", border: "1px solid #C9A84C44", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 },
+  title: { fontSize: 17, fontWeight: 700, color: "#E8E0CC", fontFamily: "-apple-system, 'Segoe UI', sans-serif" },
+};
 
 // ---------- Main App ----------
 export default function App() {
@@ -544,6 +601,11 @@ export default function App() {
   const [deviceHeading, setDeviceHeading] = useState(0);
   const [qiblaPermission, setQiblaPermission] = useState(false);
   const [qiblaError, setQiblaError] = useState("");
+
+  // Nearby Mosques state
+  const [mosques, setMosques] = useState([]);
+  const [mosquesLoading, setMosquesLoading] = useState(false);
+  const [mosquesError, setMosquesError] = useState("");
 
   // AI Companion state
   const [messages, setMessages] = useState([
@@ -696,6 +758,53 @@ export default function App() {
     return ((θ * 180) / Math.PI + 360) % 360;
   }
 
+  useEffect(() => {
+    if (activeTab === "qibla" && qiblaAngle === null) {
+      startQiblaCompass();
+    }
+  }, [activeTab, location]);
+
+  // Fetch nearby mosques from Overpass API when the Nearby screen opens
+  const fetchNearbyMosques = useCallback(async (lat, lon) => {
+    setMosquesLoading(true);
+    setMosquesError("");
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout
+    try {
+      const radius = 5000; // 5km
+      const query = `[out:json][timeout:25];(node["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lon});way["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lon});relation["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lon}););out center;`;
+      const res = await fetch("https://overpass-api.de/api/interpreter", {
+        method: "POST",
+        body: query,
+        signal: controller.signal,
+      });
+      const data = await res.json();
+      const results = (data.elements || []).map((el) => ({
+        id: el.id,
+        lat: el.lat || el.center?.lat,
+        lon: el.lon || el.center?.lon,
+        name: el.tags?.name || "Mosque",
+        address: [el.tags?.["addr:street"], el.tags?.["addr:city"]].filter(Boolean).join(", "),
+      })).filter((m) => m.lat && m.lon);
+      setMosques(results);
+    } catch (e) {
+      if (e.name === "AbortError") {
+        setMosquesError("Request timed out. The map service may be slow right now — try again.");
+      } else {
+        setMosquesError("Couldn't load nearby mosques. Check your connection.");
+      }
+    } finally {
+      clearTimeout(timeoutId);
+    }
+    setMosquesLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "nearby" && location && mosques.length === 0 && !mosquesLoading) {
+      fetchNearbyMosques(location.lat, location.lon);
+    }
+  }, [activeTab, location, mosques.length, mosquesLoading, fetchNearbyMosques]);
+
   function startQiblaCompass() {
     if (!location) {
       setQiblaError("Location not detected yet. Please wait.");
@@ -752,7 +861,6 @@ export default function App() {
     setMessages(newMessages);
     setAiInput("");
     setAiLoading(true);
-    console.log("API KEY:", import.meta.env.VITE_ANTHROPIC_KEY);
 
     try {
       const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -811,7 +919,15 @@ IMPORTANT RULES:
   return (
     <div style={styles.page}>
       <GlobalStyles />
-
+      {/* AI Search Bar */}
+      <button style={styles.aiSearchBar} onClick={() => setActiveTab("ai")}>
+        <div style={styles.aiSearchIcon}><Bot size={22} color={GOLD} /></div>
+        <div style={styles.aiSearchText}>
+          <div style={styles.aiSearchHint}>What do we say at the time of the Adhan?</div>
+          <div style={styles.aiSearchSub}>Ask Hidayah AI</div>
+        </div>
+        <div style={styles.aiSearchArrow}>→</div>
+      </button>
       {/* Header */}
       <div style={styles.header}>
         <div style={styles.headerTop}>
@@ -835,56 +951,31 @@ IMPORTANT RULES:
         )}
       </div>
 
-      {/* Tabs */}
-      <div style={styles.tabs}>
-        <button
-          style={{ ...styles.tab, ...(activeTab === "prayer" ? styles.tabActive : {}) }}
-          onClick={() => setActiveTab("prayer")}
-        >
-          🕌 Prayer
-        </button>
-        <button
-          style={{ ...styles.tab, ...(activeTab === "azkar" ? styles.tabActive : {}) }}
-          onClick={() => { setActiveTab("azkar"); setSelectedCategory(null); }}
-        >
-          📿 Azkar
-        </button>
-        <button
-          style={{ ...styles.tab, ...(activeTab === "quran" ? styles.tabActive : {}) }}
-          onClick={() => { setActiveTab("quran"); setSelectedSurah(null); setSurahSearch(""); }}
-        >
-          📖 Quran
-        </button>
-        <button
-          style={{ ...styles.tab, ...(activeTab === "calendar" ? styles.tabActive : {}) }}
-          onClick={() => setActiveTab("calendar")}
-        >
-          📅 Calendar
-        </button>
-        <button
-          style={{ ...styles.tab, ...(activeTab === "ai" ? styles.tabActive : {}) }}
-          onClick={() => setActiveTab("ai")}
-        >
-          🤖 AI
-        </button>
-        <button
-          style={{ ...styles.tab, ...(activeTab === "tasbih" ? styles.tabActive : {}) }}
-          onClick={() => setActiveTab("tasbih")}
-        >
-          📿 Tasbih
-        </button>
-        <button
-          style={{ ...styles.tab, ...(activeTab === "qibla" ? styles.tabActive : {}) }}
-          onClick={() => { setActiveTab("qibla"); startQiblaCompass(); }}
-        >
-          🧭 Qibla
-        </button>
-      </div>
-
       {/* ===== PRAYER TIMES TAB ===== */}
       {activeTab === "prayer" && (
         <div style={styles.content}>
-          {timings && <div style={styles.greeting}>{getGreeting(timings)}</div>}
+          {timings && (
+            <>
+              <div style={styles.greetingRow}>
+                <span style={styles.greetingText}>
+                {getGreeting(timings)}
+                {(() => {
+                  const h = new Date().getHours();
+                  if (h >= 5 && h < 12) return <Sunrise size={14} color={GOLD_LIGHT} style={{marginLeft:6, verticalAlign:"middle"}} />;
+                  if (h >= 12 && h < 15) return <Sun size={14} color={GOLD_LIGHT} style={{marginLeft:6, verticalAlign:"middle"}} />;
+                  if (h >= 15 && h < 18) return <CloudSun size={14} color={GOLD_LIGHT} style={{marginLeft:6, verticalAlign:"middle"}} />;
+                  if (h >= 18 && h < 20) return <Sunset size={14} color={GOLD_LIGHT} style={{marginLeft:6, verticalAlign:"middle"}} />;
+                  return <Moon size={14} color={GOLD_LIGHT} style={{marginLeft:6, verticalAlign:"middle"}} />;
+                })()}
+              </span>
+                <span style={styles.greetingDot}>·</span>
+                <span style={styles.greetingDate}>
+                  {gregorian && `${gregorian.weekday.en}, ${gregorian.day} ${gregorian.month.en}`}
+                </span>
+              </div>
+              <div style={styles.greetingDivider} />
+            </>
+          )}
 
           {error && (
             <div style={styles.errorCard}>
@@ -901,10 +992,11 @@ IMPORTANT RULES:
           )}
 
           {!loading && !error && nextPrayer && (
-            <div style={styles.countdownCard}>
+            <div style={{ ...styles.countdownCard, position: "relative", overflow: "hidden" }}>
+                <Landmark size={150} color={GOLD} style={{ position: "absolute", right: -20, bottom: -20, opacity: 0.08 }} />
               <div style={styles.countdownLabel}>Next Prayer</div>
               <div style={styles.countdownPrayer}>
-                {PRAYER_EMOJI[nextPrayer.name]} {nextPrayer.name}
+                {(() => { const Icon = PRAYER_ICONS[nextPrayer.name]; return Icon ? <Icon size={20} color={GOLD_LIGHT} style={{display:"inline",verticalAlign:"middle",marginRight:6}} /> : null; })()} {nextPrayer.name}
                 <span style={styles.countdownArabic}> {PRAYER_ARABIC[nextPrayer.name]}</span>
               </div>
               <div style={styles.countdownTimer}>{countdown}</div>
@@ -913,51 +1005,57 @@ IMPORTANT RULES:
               </div>
             </div>
           )}
-
-          {!loading && !error && timings && (
-            <div style={styles.prayerList}>
-              {PRAYERS.map((prayer) => {
-                const isNext = nextPrayer?.name === prayer;
-                const isPassed = parseTime(timings[prayer]) < now && !isNext;
-                return (
-                  <div
-                    key={prayer}
-                    style={{
-                      ...styles.prayerRow,
-                      ...(isNext ? styles.prayerRowNext : {}),
-                      ...(isPassed ? styles.prayerRowPassed : {}),
-                    }}
-                  >
-                    <div style={styles.prayerLeft}>
-                      <span style={styles.prayerEmoji}>{PRAYER_EMOJI[prayer]}</span>
-                      <div>
-                        <div style={styles.prayerName}>{prayer}</div>
-                        <div style={styles.prayerArabic}>{PRAYER_ARABIC[prayer]}</div>
+          {/* See all prayers link */}
+          {timings && (
+            <button
+              style={styles.seeAllPrayersBtn}
+              onClick={() => setActiveTab("prayerTimes")}
+            >
+              View all prayer times →
+            </button>
+          )}
+          {/* Quick shortcuts */}
+          {timings && (
+            <div style={styles.shortcutsWrap}>
+            <div style={styles.shortcutsRow}>
+              {[
+                { icon: BookOpen, label: "Quran", tab: "quran", bg: "radial-gradient(circle at 35% 35%, #2A8C8A, #0D3A38)" },
+                { icon: Sparkles, label: "Azkar", tab: "azkar", bg: "radial-gradient(circle at 35% 35%, #5A2A8C, #1A0A3A)" },
+                { icon: CircleDot, label: "Tasbih", tab: "tasbih", bg: "radial-gradient(circle at 35% 35%, #8C6A1A, #3A2A0A)" },
+                { icon: Compass, label: "Qibla", tab: "qibla", bg: "radial-gradient(circle at 35% 35%, #2A8C4A, #0A3A1A)" },
+                { icon: Calendar, label: "Calendar", tab: "calendar", bg: "radial-gradient(circle at 35% 35%, #1A4A8C, #0A1A3A)" },
+                { icon: null, label: "AI", tab: "ai", bg: "radial-gradient(circle at 35% 35%, #8C1A5C, #3A0A2A)" },
+                { icon: MapPin, label: "Nearby", tab: "nearby", bg: "radial-gradient(circle at 35% 35%, #8C3A1A, #3A1A0A)" },
+              ].map((s) => (
+                <button
+                  key={s.tab}
+                  style={styles.shortcutBtn}
+                  onClick={() => setActiveTab(s.tab)}
+                >
+                  <div style={{ ...styles.shortcutCircle, background: s.bg }}>
+                    {s.icon ? (
+                      <s.icon size={22} color="#fff" />
+                    ) : (
+                      <div style={styles.aiShortcutIcon}>
+                        <Moon size={22} color="#fff" />
+                        <span style={styles.aiShortcutText}>AI</span>
                       </div>
-                    </div>
-                    <div style={styles.prayerRight}>
-                      <div style={{ ...styles.prayerTime, ...(isNext ? styles.prayerTimeNext : {}) }}>
-                        {formatTime(timings[prayer])}
-                      </div>
-                      {isNext && <div style={styles.nextBadge}>Next</div>}
-                      {isPassed && <div style={styles.passedBadge}>✓</div>}
-                    </div>
+                    )}
                   </div>
-                );
-              })}
+                  <span style={styles.shortcutLabel}>{s.label}</span>
+                </button>
+              ))}
+            </div>
+            <div style={styles.shortcutsFade} />
             </div>
           )}
-
-          <div style={styles.footer}>
-            <div style={styles.footerText}>بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ</div>
-            <div style={styles.footerSub}>Prayer times via Aladhan API · Method: Muslim World League</div>
-          </div>
         </div>
       )}
 
       {/* ===== AZKAR TAB ===== */}
       {activeTab === "azkar" && !selectedCategory && (
         <div style={styles.content}>
+          <ScreenHeader title="Azkar" onBack={() => setActiveTab("prayer")} />
           <div style={styles.azkarTitle}>Daily Adhkar & Duas</div>
           <div style={styles.azkarSubtitle}>Tap a category to begin</div>
           <div style={styles.categoryGrid}>
@@ -1027,9 +1125,170 @@ IMPORTANT RULES:
           </div>
         </div>
       )}
+      {/* ===== PRAYER TIMES SCREEN ===== */}
+      {activeTab === "prayerTimes" && (
+        <div style={styles.content}>
+          <ScreenHeader title="Prayer Times" onBack={() => setActiveTab("prayer")} />
+
+          {error && (
+            <div style={styles.errorCard}>
+              <AlertCircle size={18} color="#E8601C" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {loading && !error && (
+            <div style={styles.loadingWrap}>
+              <div style={styles.loadingDot} />
+              <div style={styles.loadingText}>Fetching prayer times…</div>
+            </div>
+          )}
+
+          {!loading && !error && timings && (
+            <>
+              {/* Date header */}
+              <div style={styles.prayerTimesDate}>
+                {hijri && <div style={styles.calHijriDate}>{hijri.day} {hijri.month.en} {hijri.year} AH</div>}
+                {gregorian && <div style={styles.calGreg}>{gregorian.weekday.en}, {gregorian.day} {gregorian.month.en} {gregorian.year}</div>}
+                {locationName && (
+                  <div style={styles.prayerTimesLocation}>
+                    <MapPin size={12} color={GOLD} />
+                    <span>{locationName}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Prayer list */}
+              <div style={styles.prayerList}>
+                {PRAYERS.map((prayer) => {
+                  const isNext = nextPrayer?.name === prayer;
+                  const isPassed = parseTime(timings[prayer]) < now && !isNext;
+                  const Icon = PRAYER_ICONS[prayer];
+                  return (
+                    <div
+                      key={prayer}
+                      style={{
+                        ...styles.prayerRow,
+                        ...(isNext ? styles.prayerRowNext : {}),
+                        ...(isPassed ? styles.prayerRowPassed : {}),
+                      }}
+                    >
+                      <div style={styles.prayerLeft}>
+                        {Icon && <Icon size={22} color={GOLD} />}
+                        <div>
+                          <div style={styles.prayerName}>{prayer}</div>
+                          <div style={styles.prayerArabic}>{PRAYER_ARABIC[prayer]}</div>
+                        </div>
+                      </div>
+                      <div style={styles.prayerRight}>
+                        <div style={{ ...styles.prayerTime, ...(isNext ? styles.prayerTimeNext : {}) }}>
+                          {formatTime(timings[prayer])}
+                        </div>
+                        {isNext && <div style={styles.nextBadge}>Next</div>}
+                        {isPassed && <div style={styles.passedBadge}>✓</div>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={styles.footer}>
+                <div style={styles.footerText}>بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ</div>
+                <div style={styles.footerSub}>Prayer times via Aladhan API · Muslim World League</div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+      {/* ===== NEARBY MOSQUES SCREEN ===== */}
+      {activeTab === "nearby" && (
+        <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+          <ScreenHeader title="Nearby" onBack={() => setActiveTab("prayer")} />
+
+          {!location && (
+            <div style={{ padding: "0 16px 12px" }}>
+              <div style={styles.errorCard}>
+                <AlertCircle size={18} color="#E8601C" />
+                <span>Location not available. Please allow location access to find nearby mosques.</span>
+              </div>
+            </div>
+          )}
+
+          {mosquesError && (
+            <div style={{ padding: "0 16px 12px" }}>
+              <div style={styles.errorCard}>
+                <AlertCircle size={18} color="#E8601C" />
+                <span>{mosquesError}</span>
+              </div>
+            </div>
+          )}
+
+          {mosquesLoading && (
+            <div style={styles.loadingWrap}>
+              <div style={styles.loadingDot} />
+              <div style={styles.loadingText}>Finding nearby mosques…</div>
+            </div>
+          )}
+
+          {!mosquesLoading && !mosquesError && location && (
+            <>
+              <div style={{ flex: 1, minHeight: 320 }}>
+                <MapContainer
+                  center={[location.lat, location.lon]}
+                  zoom={14}
+                  style={{ height: "100%", width: "100%", minHeight: 320 }}
+                >
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  <RecenterMap lat={location.lat} lon={location.lon} />
+                  <Marker position={[location.lat, location.lon]} icon={userIcon}>
+                    <Popup>You are here</Popup>
+                  </Marker>
+                  {mosques.map((m) => (
+                    <Marker key={m.id} position={[m.lat, m.lon]} icon={mosqueIcon}>
+                      <Popup>
+                        <strong>{m.name}</strong>
+                        {m.address && <div>{m.address}</div>}
+                      </Popup>
+                    </Marker>
+                  ))}
+                </MapContainer>
+              </div>
+
+              {mosques.length === 0 && (
+                <div style={styles.emptyStateWrap}>
+                  <Landmark size={40} color={MUTED} />
+                  <div style={styles.emptyStateText}>No mosques found within 5km of your location.</div>
+                </div>
+              )}
+
+              {mosques.length > 0 && (
+                <div style={styles.mosqueList}>
+                  <div style={styles.nearbyCount}>
+                    {mosques.length} mosque{mosques.length !== 1 ? "s" : ""} found nearby
+                  </div>
+                  {mosques.map((m) => (
+                    <div key={m.id} style={styles.mosqueCard}>
+                      <Navigation size={20} color={GOLD} />
+                      <div>
+                        <div style={styles.mosqueName}>{m.name}</div>
+                        {m.address && <div style={styles.mosqueAddress}>{m.address}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {/* ===== TASBIH TAB ===== */}
       {activeTab === "tasbih" && (
         <div style={styles.content}>
+          <ScreenHeader title="Tasbih" onBack={() => setActiveTab("prayer")} />
           <div style={styles.azkarTitle}>التسبيح</div>
           <div style={styles.azkarSubtitle}>Digital Tasbih Counter</div>
 
@@ -1132,6 +1391,7 @@ IMPORTANT RULES:
       {/* ===== QIBLA COMPASS TAB ===== */}
       {activeTab === "qibla" && (
         <div style={styles.content}>
+          <ScreenHeader title="Qibla" onBack={() => setActiveTab("prayer")} />
           <div style={styles.azkarTitle}>القبلة</div>
           <div style={styles.azkarSubtitle}>Qibla Direction — Toward the Ka'bah</div>
 
@@ -1214,6 +1474,7 @@ IMPORTANT RULES:
       {/* ===== AI COMPANION TAB ===== */}
       {activeTab === "ai" && (
         <div style={styles.aiPage}>
+          <ScreenHeader title="Hidayah AI" onBack={() => setActiveTab("prayer")} />
           <div style={styles.aiHeader}>
             <div style={styles.aiTitle}>🤖 Hidayah AI</div>
             <div style={styles.aiSubtitle}>Ask anything about Islam — sourced answers from Quran & Sunnah</div>
@@ -1281,6 +1542,7 @@ IMPORTANT RULES:
       {/* ===== CALENDAR TAB ===== */}
       {activeTab === "calendar" && (
         <div style={styles.content}>
+          <ScreenHeader title="Islamic Calendar" onBack={() => setActiveTab("prayer")} />
           <div style={styles.azkarTitle}>التقويم الهجري</div>
           <div style={styles.azkarSubtitle}>Islamic Hijri Calendar</div>
 
@@ -1390,6 +1652,7 @@ IMPORTANT RULES:
       {/* ===== QURAN TAB — Surah List ===== */}
       {activeTab === "quran" && !selectedSurah && (
         <div style={styles.content}>
+          <ScreenHeader title="Quran" onBack={() => setActiveTab("prayer")} />
           <div style={styles.azkarTitle}>القرآن الكريم</div>
           <div style={styles.azkarSubtitle}>The Noble Quran — 114 Surahs</div>
 
@@ -1534,11 +1797,27 @@ const styles = {
   dateHijri: { fontSize: 12.5, color: GOLD },
   dateSep: { color: MUTED, fontSize: 10 },
   dateGreg: { fontSize: 12.5, color: MUTED },
-  tabs: { display: "flex", background: DEEP, borderBottom: `1px solid ${CARD}` },
-  tab: { flex: 1, padding: "13px 8px", background: "none", color: MUTED, fontSize: 13.5, fontWeight: 600, borderBottom: "2px solid transparent" },
-  tabActive: { color: GOLD, borderBottom: `2px solid ${GOLD}` },
   content: { padding: "16px 16px 60px" },
-  greeting: { textAlign: "center", fontSize: 15, color: GOLD_LIGHT, marginBottom: 14, fontStyle: "italic" },
+  greetingRow: { display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" },
+  greetingText: { fontSize: 15, color: GOLD_LIGHT, fontStyle: "italic" },
+  greetingDot: { color: MUTED, fontSize: 13 },
+  greetingDate: { fontSize: 13, color: MUTED },
+  greetingDivider: { height: 1, background: `linear-gradient(to right, transparent, ${GOLD}44, transparent)`, marginBottom: 16 },
+  shortcutsWrap: { position: "relative", marginBottom: 20 },
+  shortcutsRow: { display: "flex", gap: 18, overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none", padding: "0 4px 4px" },
+  shortcutsFade: { position: "absolute", top: 0, right: 0, bottom: 4, width: 36, background: `linear-gradient(to right, transparent, ${MIDNIGHT})`, pointerEvents: "none" },
+  shortcutBtn: { display: "flex", flexDirection: "column", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", flexShrink: 0 },
+  shortcutCircle: { width: 58, height: 58, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" },
+  shortcutEmoji: { fontSize: 26 },
+  shortcutLabel: { fontSize: 11.5, color: MUTED, fontWeight: 600 },
+  aiShortcutIcon: { position: "relative", display: "flex", alignItems: "center", justifyContent: "center" },
+  aiShortcutText: { position: "absolute", fontSize: 8, fontWeight: 700, color: "#fff", letterSpacing: "0.05em" },
+  aiSearchBar: { display: "flex", alignItems: "center", gap: 12, background: CARD, border: `1px solid ${GOLD}33`, borderRadius: 14, padding: "12px 16px", margin: "12px 16px 0", width: "calc(100% - 32px)", cursor: "pointer", textAlign: "left" },
+  aiSearchIcon: { fontSize: 22, flexShrink: 0 },
+  aiSearchText: { flex: 1, minWidth: 0 },
+  aiSearchHint: { fontSize: 13, color: MUTED, fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  aiSearchSub: { fontSize: 11, color: GOLD, fontWeight: 600, marginTop: 2 },
+  aiSearchArrow: { fontSize: 18, color: GOLD, flexShrink: 0 },
   errorCard: { display: "flex", alignItems: "center", gap: 10, background: "#2A1510", border: "1px solid #5A2A1A", borderRadius: 12, padding: "12px 16px", marginBottom: 14, color: "#E8A090", fontSize: 13.5 },
   loadingWrap: { textAlign: "center", padding: "40px 20px" },
   loadingDot: { width: 10, height: 10, borderRadius: "50%", background: GOLD, margin: "0 auto 12px", animation: "pulse 1.2s ease-in-out infinite" },
@@ -1554,7 +1833,6 @@ const styles = {
   prayerRowNext: { border: `1px solid ${GOLD}88`, background: "#1A3A5C" },
   prayerRowPassed: { opacity: 0.5 },
   prayerLeft: { display: "flex", alignItems: "center", gap: 12 },
-  prayerEmoji: { fontSize: 20 },
   prayerName: { fontSize: 17, fontWeight: 600, color: TEXT },
   prayerArabic: { fontFamily: FONT_ARABIC, fontSize: 15, color: GOLD, marginTop: 1 },
   prayerRight: { textAlign: "right" },
@@ -1562,6 +1840,9 @@ const styles = {
   prayerTimeNext: { color: GOLD_LIGHT },
   nextBadge: { fontSize: 11, background: GOLD, color: MIDNIGHT, padding: "2px 7px", borderRadius: 5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 3 },
   passedBadge: { fontSize: 16, color: GREEN, marginTop: 2 },
+  prayerTimesDate: { textAlign: "center", padding: "16px 0 20px", borderBottom: `1px solid ${CARD}`, marginBottom: 16 },
+  prayerTimesLocation: { display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontSize: 12, color: MUTED, marginTop: 6 },
+  seeAllPrayersBtn: { display: "block", margin: "12px auto 4px", background: "none", border: "none", color: GOLD, fontSize: 13, fontWeight: 600, cursor: "pointer", letterSpacing: "0.03em" },
   footer: { textAlign: "center", padding: "32px 0 0" },
   footerText: { fontFamily: FONT_ARABIC, fontSize: 20, color: GOLD, marginBottom: 6 },
   footerSub: { fontSize: 12, color: MUTED, fontStyle: "italic" },
@@ -1682,6 +1963,14 @@ const styles = {
   qiblaLocation: { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 13, color: MUTED, marginBottom: 16 },
   qiblaHint: { background: CARD, borderRadius: 10, padding: "10px 14px", fontSize: 13, color: MUTED, textAlign: "center", marginBottom: 12 },
   qiblaDisclaimer: { fontSize: 12, color: "#5A7A9A", textAlign: "center", fontStyle: "italic", lineHeight: 1.6 },
+  // Nearby Mosques styles
+  emptyStateWrap: { textAlign: "center", padding: "30px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 },
+  emptyStateText: { fontSize: 13.5, color: MUTED, lineHeight: 1.6 },
+  mosqueList: { display: "flex", flexDirection: "column", gap: 8, padding: "12px 16px", overflowY: "auto" },
+  nearbyCount: { fontSize: 12.5, color: MUTED, marginBottom: 4 },
+  mosqueCard: { display: "flex", alignItems: "flex-start", gap: 12, background: CARD, border: `1px solid #1E3A5A`, borderRadius: 12, padding: "12px 14px" },
+  mosqueName: { fontSize: 14.5, fontWeight: 600, color: TEXT },
+  mosqueAddress: { fontSize: 12, color: MUTED, marginTop: 2 },
   // AI Companion styles
   aiPage: { display: "flex", flexDirection: "column", height: "calc(100vh - 120px)" },
   aiHeader: { padding: "16px 16px 12px", borderBottom: `1px solid ${CARD}` },
