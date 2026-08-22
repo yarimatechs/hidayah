@@ -1,5 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
-import { MapPin, Clock, AlertCircle, ChevronLeft, RotateCcw, BookOpen, Calendar, MessageCircle, Send, Moon, Sunrise, Sun, CloudSun, Sunset, MoonStar, Sparkles, Compass, Bot, Landmark, CircleDot } from "lucide-react";
+import { MapPin, Clock, AlertCircle, ChevronLeft, RotateCcw, BookOpen, Calendar, Send, Moon, Sunrise, Sun, CloudSun, Sunset, MoonStar, Sparkles, Compass, Bot, Landmark, CircleDot, Navigation } from "lucide-react";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import L from "leaflet";
+
+// Fix Leaflet's default marker icons (broken by default under Vite/bundlers)
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
 
 // ---------- Prayer Constants ----------
 const PRAYERS = ["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"];
@@ -509,6 +519,31 @@ const HIJRI_MONTHS = [
   "Ramadan", "Shawwal", "Dhul Qa'dah", "Dhul Hijjah",
 ];
 
+const mosqueIcon = new L.Icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+const userIcon = new L.Icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+// ---------- Map re-center helper ----------
+function RecenterMap({ lat, lon }) {
+  const map = useMap();
+  useEffect(() => { map.setView([lat, lon], 14); }, [lat, lon, map]);
+  return null;
+}
+
 // ---------- Screen Header ----------
 function ScreenHeader({ title, onBack }) {
   return (
@@ -566,6 +601,11 @@ export default function App() {
   const [deviceHeading, setDeviceHeading] = useState(0);
   const [qiblaPermission, setQiblaPermission] = useState(false);
   const [qiblaError, setQiblaError] = useState("");
+
+  // Nearby Mosques state
+  const [mosques, setMosques] = useState([]);
+  const [mosquesLoading, setMosquesLoading] = useState(false);
+  const [mosquesError, setMosquesError] = useState("");
 
   // AI Companion state
   const [messages, setMessages] = useState([
@@ -723,6 +763,47 @@ export default function App() {
       startQiblaCompass();
     }
   }, [activeTab, location]);
+
+  // Fetch nearby mosques from Overpass API when the Nearby screen opens
+  const fetchNearbyMosques = useCallback(async (lat, lon) => {
+    setMosquesLoading(true);
+    setMosquesError("");
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout
+    try {
+      const radius = 5000; // 5km
+      const query = `[out:json][timeout:25];(node["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lon});way["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lon});relation["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lon}););out center;`;
+      const res = await fetch("https://overpass-api.de/api/interpreter", {
+        method: "POST",
+        body: query,
+        signal: controller.signal,
+      });
+      const data = await res.json();
+      const results = (data.elements || []).map((el) => ({
+        id: el.id,
+        lat: el.lat || el.center?.lat,
+        lon: el.lon || el.center?.lon,
+        name: el.tags?.name || "Mosque",
+        address: [el.tags?.["addr:street"], el.tags?.["addr:city"]].filter(Boolean).join(", "),
+      })).filter((m) => m.lat && m.lon);
+      setMosques(results);
+    } catch (e) {
+      if (e.name === "AbortError") {
+        setMosquesError("Request timed out. The map service may be slow right now — try again.");
+      } else {
+        setMosquesError("Couldn't load nearby mosques. Check your connection.");
+      }
+    } finally {
+      clearTimeout(timeoutId);
+    }
+    setMosquesLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "nearby" && location && mosques.length === 0 && !mosquesLoading) {
+      fetchNearbyMosques(location.lat, location.lon);
+    }
+  }, [activeTab, location, mosques.length, mosquesLoading, fetchNearbyMosques]);
 
   function startQiblaCompass() {
     if (!location) {
@@ -944,6 +1025,7 @@ IMPORTANT RULES:
                 { icon: Compass, label: "Qibla", tab: "qibla", bg: "radial-gradient(circle at 35% 35%, #2A8C4A, #0A3A1A)" },
                 { icon: Calendar, label: "Calendar", tab: "calendar", bg: "radial-gradient(circle at 35% 35%, #1A4A8C, #0A1A3A)" },
                 { icon: null, label: "AI", tab: "ai", bg: "radial-gradient(circle at 35% 35%, #8C1A5C, #3A0A2A)" },
+                { icon: MapPin, label: "Nearby", tab: "nearby", bg: "radial-gradient(circle at 35% 35%, #8C3A1A, #3A1A0A)" },
               ].map((s) => (
                 <button
                   key={s.tab}
@@ -1118,6 +1200,91 @@ IMPORTANT RULES:
           )}
         </div>
       )}
+      {/* ===== NEARBY MOSQUES SCREEN ===== */}
+      {activeTab === "nearby" && (
+        <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+          <ScreenHeader title="Nearby" onBack={() => setActiveTab("prayer")} />
+
+          {!location && (
+            <div style={{ padding: "0 16px 12px" }}>
+              <div style={styles.errorCard}>
+                <AlertCircle size={18} color="#E8601C" />
+                <span>Location not available. Please allow location access to find nearby mosques.</span>
+              </div>
+            </div>
+          )}
+
+          {mosquesError && (
+            <div style={{ padding: "0 16px 12px" }}>
+              <div style={styles.errorCard}>
+                <AlertCircle size={18} color="#E8601C" />
+                <span>{mosquesError}</span>
+              </div>
+            </div>
+          )}
+
+          {mosquesLoading && (
+            <div style={styles.loadingWrap}>
+              <div style={styles.loadingDot} />
+              <div style={styles.loadingText}>Finding nearby mosques…</div>
+            </div>
+          )}
+
+          {!mosquesLoading && !mosquesError && location && (
+            <>
+              <div style={{ flex: 1, minHeight: 320 }}>
+                <MapContainer
+                  center={[location.lat, location.lon]}
+                  zoom={14}
+                  style={{ height: "100%", width: "100%", minHeight: 320 }}
+                >
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  <RecenterMap lat={location.lat} lon={location.lon} />
+                  <Marker position={[location.lat, location.lon]} icon={userIcon}>
+                    <Popup>You are here</Popup>
+                  </Marker>
+                  {mosques.map((m) => (
+                    <Marker key={m.id} position={[m.lat, m.lon]} icon={mosqueIcon}>
+                      <Popup>
+                        <strong>{m.name}</strong>
+                        {m.address && <div>{m.address}</div>}
+                      </Popup>
+                    </Marker>
+                  ))}
+                </MapContainer>
+              </div>
+
+              {mosques.length === 0 && (
+                <div style={styles.emptyStateWrap}>
+                  <Landmark size={40} color={MUTED} />
+                  <div style={styles.emptyStateText}>No mosques found within 5km of your location.</div>
+                </div>
+              )}
+
+              {mosques.length > 0 && (
+                <div style={styles.mosqueList}>
+                  <div style={styles.nearbyCount}>
+                    {mosques.length} mosque{mosques.length !== 1 ? "s" : ""} found nearby
+                  </div>
+                  {mosques.map((m) => (
+                    <div key={m.id} style={styles.mosqueCard}>
+                      <Navigation size={20} color={GOLD} />
+                      <div>
+                        <div style={styles.mosqueName}>{m.name}</div>
+                        {m.address && <div style={styles.mosqueAddress}>{m.address}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {/* ===== TASBIH TAB ===== */}
       {activeTab === "tasbih" && (
         <div style={styles.content}>
@@ -1666,7 +1833,6 @@ const styles = {
   prayerRowNext: { border: `1px solid ${GOLD}88`, background: "#1A3A5C" },
   prayerRowPassed: { opacity: 0.5 },
   prayerLeft: { display: "flex", alignItems: "center", gap: 12 },
-  prayerEmoji: { fontSize: 20 },
   prayerName: { fontSize: 17, fontWeight: 600, color: TEXT },
   prayerArabic: { fontFamily: FONT_ARABIC, fontSize: 15, color: GOLD, marginTop: 1 },
   prayerRight: { textAlign: "right" },
@@ -1797,24 +1963,8 @@ const styles = {
   qiblaLocation: { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 13, color: MUTED, marginBottom: 16 },
   qiblaHint: { background: CARD, borderRadius: 10, padding: "10px 14px", fontSize: 13, color: MUTED, textAlign: "center", marginBottom: 12 },
   qiblaDisclaimer: { fontSize: 12, color: "#5A7A9A", textAlign: "center", fontStyle: "italic", lineHeight: 1.6 },
-  // AI Companion styles
-  aiPage: { display: "flex", flexDirection: "column", height: "calc(100vh - 120px)" },
-  aiHeader: { padding: "16px 16px 12px", borderBottom: `1px solid ${CARD}` },
-  aiTitle: { fontSize: 17, fontWeight: 700, color: TEXT, marginBottom: 4 },
-  aiSubtitle: { fontSize: 12.5, color: MUTED, marginBottom: 6 },
-  aiDisclaimer: { fontSize: 11.5, color: "#8B6A2A", background: "#2A1F0A", borderRadius: 8, padding: "5px 10px", display: "inline-block" },
-  aiMessages: { flex: 1, overflowY: "auto", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 14 },
-  aiMessage: { display: "flex", alignItems: "flex-start", gap: 8 },
-  aiMessageUser: { flexDirection: "row-reverse" },
-  aiMessageAssistant: { flexDirection: "row" },
-  aiAvatar: { fontSize: 20, flexShrink: 0, marginTop: 2 },
-  aiMessageBubble: { maxWidth: "80%", borderRadius: 14, padding: "10px 14px", fontSize: 13.5, lineHeight: 1.6 },
-  aiMessageBubbleUser: { background: GOLD, color: MIDNIGHT, borderBottomRightRadius: 4 },
-  aiMessageBubbleAssistant: { background: CARD, color: TEXT, borderBottomLeftRadius: 4 },
-  aiTyping: { display: "flex", alignItems: "center", gap: 5, background: CARD, borderRadius: 14, padding: "12px 16px" },
-  aiDot: { width: 7, height: 7, borderRadius: "50%", background: GOLD, display: "inline-block", animation: "pulse 1.2s ease-in-out infinite" },
-  aiInputRow: { display: "flex", gap: 8, padding: "12px 16px", borderTop: `1px solid ${CARD}`, background: MIDNIGHT },
-  aiInput: { flex: 1, background: CARD, border: `1px solid #1E3A5A`, borderRadius: 10, padding: "11px 14px", color: TEXT, fontSize: 14, fontFamily: FONT, outline: "none" },
-  aiSendBtn: { background: GOLD, color: MIDNIGHT, border: "none", borderRadius: 10, padding: "11px 14px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
-  aiSendBtnDisabled: { opacity: 0.5, cursor: "not-allowed" },
-};
+  // Nearby Mosques styles
+  emptyStateWrap: { textAlign: "center", padding: "30px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 },
+  emptyStateText: { fontSize: 13.5, color: MUTED, lineHeight: 1.6 },
+  mosqueList: { display: "flex", flexDirection: "column", gap: 8, padding: "12px 16px", overflowY: "auto" },
+  nearbyCount: { fontSi
