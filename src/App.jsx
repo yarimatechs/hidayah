@@ -606,6 +606,7 @@ export default function App() {
   const [mosques, setMosques] = useState([]);
   const [mosquesLoading, setMosquesLoading] = useState(false);
   const [mosquesError, setMosquesError] = useState("");
+  const [mosquesFetched, setMosquesFetched] = useState(false);
 
   // AI Companion state
   const [messages, setMessages] = useState([
@@ -797,13 +798,14 @@ export default function App() {
       clearTimeout(timeoutId);
     }
     setMosquesLoading(false);
+    setMosquesFetched(true);
   }, []);
 
   useEffect(() => {
-    if (activeTab === "nearby" && location && mosques.length === 0 && !mosquesLoading) {
+    if (activeTab === "nearby" && location && !mosquesFetched && !mosquesLoading) {
       fetchNearbyMosques(location.lat, location.lon);
     }
-  }, [activeTab, location, mosques.length, mosquesLoading, fetchNearbyMosques]);
+  }, [activeTab, location, mosquesFetched, mosquesLoading, fetchNearbyMosques]);
 
   function startQiblaCompass() {
     if (!location) {
@@ -1220,6 +1222,12 @@ IMPORTANT RULES:
                 <AlertCircle size={18} color="#E8601C" />
                 <span>{mosquesError}</span>
               </div>
+              <button
+                style={styles.retryBtn}
+                onClick={() => { setMosquesFetched(false); setMosquesError(""); }}
+              >
+                Try Again
+              </button>
             </div>
           )}
 
@@ -1968,6 +1976,7 @@ const styles = {
   emptyStateText: { fontSize: 13.5, color: MUTED, lineHeight: 1.6 },
   mosqueList: { display: "flex", flexDirection: "column", gap: 8, padding: "12px 16px", overflowY: "auto" },
   nearbyCount: { fontSize: 12.5, color: MUTED, marginBottom: 4 },
+  retryBtn: { display: "block", margin: "0 auto", background: CARD, border: `1px solid ${GOLD}66`, borderRadius: 10, padding: "8px 18px", color: GOLD, fontSize: 13, fontWeight: 600, cursor: "pointer" },
   mosqueCard: { display: "flex", alignItems: "flex-start", gap: 12, background: CARD, border: `1px solid #1E3A5A`, borderRadius: 12, padding: "12px 14px" },
   mosqueName: { fontSize: 14.5, fontWeight: 600, color: TEXT },
   mosqueAddress: { fontSize: 12, color: MUTED, marginTop: 2 },
