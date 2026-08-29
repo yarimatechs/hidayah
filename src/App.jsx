@@ -769,33 +769,49 @@ export default function App() {
   const fetchNearbyMosques = useCallback(async (lat, lon) => {
     setMosquesLoading(true);
     setMosquesError("");
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout
-    try {
-      const radius = 5000; // 5km
-      const query = `[out:json][timeout:25];(node["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lon});way["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lon});relation["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lon}););out center;`;
-      const res = await fetch("https://overpass-api.de/api/interpreter", {
-        method: "POST",
-        body: query,
-        signal: controller.signal,
-      });
-      const data = await res.json();
-      const results = (data.elements || []).map((el) => ({
-        id: el.id,
-        lat: el.lat || el.center?.lat,
-        lon: el.lon || el.center?.lon,
-        name: el.tags?.name || "Mosque",
-        address: [el.tags?.["addr:street"], el.tags?.["addr:city"]].filter(Boolean).join(", "),
-      })).filter((m) => m.lat && m.lon);
-      setMosques(results);
-    } catch (e) {
-      if (e.name === "AbortError") {
+    const radius = 5000; // 5km
+    const query = `[out:json][timeout:25];(node["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lon});way["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lon});relation["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lon}););out center;`;
+    const endpoints = [
+      "https://overpass-api.de/api/interpreter",
+      "https://overpass.kumi.systems/api/interpreter",
+    ];
+
+    let lastError = null;
+    for (const endpoint of endpoints) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout per attempt
+      try {
+        const res = await fetch(endpoint, {
+          method: "POST",
+          body: query,
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error("Bad response");
+        const data = await res.json();
+        const results = (data.elements || []).map((el) => ({
+          id: el.id,
+          lat: el.lat || el.center?.lat,
+          lon: el.lon || el.center?.lon,
+          name: el.tags?.name || "Mosque",
+          address: [el.tags?.["addr:street"], el.tags?.["addr:city"]].filter(Boolean).join(", "),
+        })).filter((m) => m.lat && m.lon);
+        setMosques(results);
+        lastError = null;
+        clearTimeout(timeoutId);
+        break; // success — stop trying further mirrors
+      } catch (e) {
+        lastError = e;
+        clearTimeout(timeoutId);
+        // try next endpoint, if any
+      }
+    }
+
+    if (lastError) {
+      if (lastError.name === "AbortError") {
         setMosquesError("Request timed out. The map service may be slow right now — try again.");
       } else {
         setMosquesError("Couldn't load nearby mosques. Check your connection.");
       }
-    } finally {
-      clearTimeout(timeoutId);
     }
     setMosquesLoading(false);
     setMosquesFetched(true);
