@@ -676,6 +676,11 @@ export default function App() {
       () => {
         setError("Location permission denied. Please allow location access.");
         setLoading(false);
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 15000,
+        maximumAge: 300000,
       }
     );
   }, [fetchPrayerTimes]);
