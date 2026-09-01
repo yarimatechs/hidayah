@@ -663,14 +663,18 @@ export default function App() {
         const { latitude, longitude } = pos.coords;
         setLocation({ lat: latitude, lon: longitude });
         try {
+          const geoController = new AbortController();
+          const geoTimeout = setTimeout(() => geoController.abort(), 8000);
           const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+            { signal: geoController.signal }
           );
+          clearTimeout(geoTimeout);
           const data = await res.json();
           const city = data.address?.city || data.address?.town || data.address?.village || "";
           const country = data.address?.country || "";
-          setLocationName(city ? `${city}, ${country}` : country);
-        } catch { setLocationName(""); }
+          setLocationName(city ? `${city}, ${country}` : country || "Location detected");
+        } catch { setLocationName("Location detected"); }
         fetchPrayerTimes(latitude, longitude);
       },
       () => {
