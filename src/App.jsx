@@ -671,7 +671,7 @@ export default function App() {
           );
           clearTimeout(geoTimeout);
           const data = await res.json();
-          const city = data.address?.city || data.address?.town || data.address?.village || "";
+          const city = data.address?.city || data.address?.town || data.address?.village || data.address?.suburb || data.address?.county || data.address?.state_district || data.address?.state || "";
           const country = data.address?.country || "";
           setLocationName(city ? `${city}, ${country}` : country || "Location detected");
         } catch { setLocationName("Location detected"); }
@@ -783,6 +783,7 @@ export default function App() {
     const endpoints = [
       "https://overpass-api.de/api/interpreter",
       "https://overpass.kumi.systems/api/interpreter",
+      "https://overpass.osm.ch/api/interpreter",
     ];
 
     let lastError = null;
