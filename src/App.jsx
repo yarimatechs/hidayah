@@ -1274,7 +1274,7 @@ IMPORTANT RULES:
                 >
                   <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png"
+                    url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
                   />
                   <RecenterMap lat={location.lat} lon={location.lon} />
                   <Marker position={[location.lat, location.lon]} icon={userIcon}>
