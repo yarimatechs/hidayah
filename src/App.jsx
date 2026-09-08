@@ -1268,13 +1268,15 @@ IMPORTANT RULES:
             <>
               <div style={{ flex: 1, minHeight: 320 }}>
                 <MapContainer
+                  key={`${location.lat.toFixed(5)},${location.lon.toFixed(5)}`}
                   center={[location.lat, location.lon]}
                   zoom={14}
                   style={{ height: "100%", width: "100%", minHeight: 320 }}
                 >
                   <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
+                    url="https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=koUNQqNCgJvqr1b79H92"
+                    maxZoom={20}
                   />
                   <RecenterMap lat={location.lat} lon={location.lon} />
                   <Marker position={[location.lat, location.lon]} icon={userIcon}>
