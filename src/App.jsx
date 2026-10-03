@@ -544,6 +544,76 @@ function RecenterMap({ lat, lon }) {
   return null;
 }
 
+// ---------- Quests Storage ----------
+const QUEST_KEYS = {
+  prayers: "quest_prayers",
+  azkar: "quest_azkar",
+  quran: "quest_quran",
+  tasbih: "quest_tasbih",
+  overall: "quest_overall",
+};
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function loadQuestData() {
+  try {
+    const raw = localStorage.getItem("hidayah_quests");
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function saveQuestData(data) {
+  try {
+    localStorage.setItem("hidayah_quests", JSON.stringify(data));
+  } catch {}
+}
+
+function getDefaultQuestData() {
+  return {
+    date: todayStr(),
+    completed: { prayers: false, azkar: false, quran: false, tasbih: false },
+    streaks: { prayers: 0, azkar: 0, quran: 0, tasbih: 0, overall: 0 },
+    // coin_balance: 0  ← ready for future coins feature
+  };
+}
+
+function loadOrResetQuests() {
+  const saved = loadQuestData();
+  if (!saved || saved.date !== todayStr()) {
+    // New day — check if yesterday was completed to continue streaks
+    const fresh = getDefaultQuestData();
+    if (saved) {
+      // Carry streaks forward only if all were completed yesterday
+      fresh.streaks = { ...saved.streaks };
+      // Reset per-quest streaks if they weren't completed yesterday
+      Object.keys(saved.completed).forEach((key) => {
+        if (!saved.completed[key]) fresh.streaks[key] = 0;
+      });
+      const allDone = Object.values(saved.completed).every(Boolean);
+      if (!allDone) fresh.streaks.overall = 0;
+    }
+    saveQuestData(fresh);
+    return fresh;
+  }
+  return saved;
+}
+
+function markQuestDone(data, questKey) {
+  if (data.completed[questKey]) return data; // already done
+  const updated = {
+    ...data,
+    completed: { ...data.completed, [questKey]: true },
+    streaks: { ...data.streaks, [questKey]: (data.streaks[questKey] || 0) + 1 },
+  };
+  // Check if all 4 quests now done
+  const allDone = Object.values(updated.completed).every(Boolean);
+  if (allDone) updated.streaks.overall = (updated.streaks.overall || 0) + 1;
+  saveQuestData(updated);
+  return updated;
+}
+
 // ---------- Screen Header ----------
 function ScreenHeader({ title, onBack }) {
   return (
@@ -601,6 +671,13 @@ export default function App() {
   const [deviceHeading, setDeviceHeading] = useState(0);
   const [qiblaPermission, setQiblaPermission] = useState(false);
   const [qiblaError, setQiblaError] = useState("");
+
+  // Quests state
+  const [quests, setQuests] = useState(() => loadOrResetQuests());
+
+  function completeQuest(key) {
+    setQuests((prev) => markQuestDone(prev, key));
+  }
 
   // Nearby Mosques state
   const [mosques, setMosques] = useState([]);
@@ -730,6 +807,7 @@ export default function App() {
 
   async function loadSurah(surah) {
     setSelectedSurah(surah);
+    completeQuest("quran");
     setSurahVerses([]);
     setQuranLoading(true);
     setQuranError("");
@@ -891,28 +969,12 @@ export default function App() {
     setAiLoading(true);
 
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": import.meta.env.VITE_ANTHROPIC_KEY,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 1024,
-          system: `You are a knowledgeable Islamic companion app called Hidayah AI. Your role is to help Muslims learn about Islam with authentic, sourced answers.
-
-IMPORTANT RULES:
-1. Always cite your sources — reference specific Quran verses (Surah name, chapter:verse) or hadith (book name, hadith number, narrator)
-2. Start responses with an appropriate Islamic greeting or acknowledgment
-3. Be respectful, warm, and scholarly in tone
-4. If you are uncertain or the question involves complex personal rulings (fatwa), clearly say: "For this matter, I recommend consulting a qualified Islamic scholar (mufti)"
-5. Never fabricate hadith or Quran references — if you don't have a clear source, say so honestly
-6. Keep answers clear and accessible — avoid overly technical jargon unless necessary
-7. For matters with scholarly differences (ikhtilaf), briefly mention the different positions
-8. End important answers with a reminder that this is for learning and not a substitute for qualified scholarly guidance`,
           messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
         }),
       });
@@ -1001,6 +1063,13 @@ IMPORTANT RULES:
                   {gregorian && `${gregorian.weekday.en}, ${gregorian.day} ${gregorian.month.en}`}
                 </span>
               </div>
+              <button
+                style={styles.streakBadge}
+                onClick={() => setActiveTab("quests")}
+              >
+                🔥 {quests.streaks.overall} day streak
+                <span style={styles.streakBadgeArrow}> ›</span>
+              </button>
               <div style={styles.greetingDivider} />
             </>
           )}
@@ -1091,7 +1160,7 @@ IMPORTANT RULES:
               <button
                 key={cat.id}
                 style={styles.categoryCard}
-                onClick={() => { setSelectedCategory(cat); setCounts({}); }}
+                onClick={() => { setSelectedCategory(cat); setCounts({}); completeQuest("azkar"); }}
               >
                 <div style={styles.categoryEmoji}>{cat.emoji}</div>
                 <div style={styles.categoryTitle}>{cat.title}</div>
@@ -1228,6 +1297,97 @@ IMPORTANT RULES:
           )}
         </div>
       )}
+      {/* ===== QUESTS SCREEN ===== */}
+      {activeTab === "quests" && (
+        <div style={styles.content}>
+          <ScreenHeader title="Daily Quests" onBack={() => setActiveTab("prayer")} />
+
+          {/* Overall streak */}
+          <div style={styles.questOverallCard}>
+            <div style={styles.questFireEmoji}>🔥</div>
+            <div style={styles.questOverallCount}>{quests.streaks.overall}</div>
+            <div style={styles.questOverallLabel}>Day Overall Streak</div>
+            <div style={styles.questOverallSub}>Complete all 4 quests daily to keep it going</div>
+          </div>
+
+          {/* Quest list */}
+          <div style={styles.questList}>
+            {[
+              {
+                key: "prayers",
+                title: "Daily Prayers",
+                desc: "Complete all 5 Salah today",
+                emoji: "🕌",
+                streak: quests.streaks.prayers,
+                done: quests.completed.prayers,
+                manual: true,
+              },
+              {
+                key: "azkar",
+                title: "Morning & Evening Azkar",
+                desc: "Open the Azkar section today",
+                emoji: "📿",
+                streak: quests.streaks.azkar,
+                done: quests.completed.azkar,
+                manual: false,
+              },
+              {
+                key: "quran",
+                title: "Read Quran",
+                desc: "Open any Surah today",
+                emoji: "📖",
+                streak: quests.streaks.quran,
+                done: quests.completed.quran,
+                manual: false,
+              },
+              {
+                key: "tasbih",
+                title: "Tasbih",
+                desc: "Use the Tasbih counter today",
+                emoji: "📿",
+                streak: quests.streaks.tasbih,
+                done: quests.completed.tasbih,
+                manual: false,
+              },
+            ].map((q) => (
+              <div
+                key={q.key}
+                style={{ ...styles.questRow, ...(q.done ? styles.questRowDone : {}) }}
+              >
+                <div style={styles.questLeft}>
+                  <div style={styles.questEmoji}>{q.emoji}</div>
+                  <div style={styles.questInfo}>
+                    <div style={styles.questTitle}>{q.title}</div>
+                    <div style={styles.questDesc}>{q.desc}</div>
+                    <div style={styles.questStreak}>
+                      🔥 {q.streak} day streak
+                    </div>
+                  </div>
+                </div>
+                <div style={styles.questRight}>
+                  {q.done ? (
+                    <div style={styles.questDoneBadge}>✓</div>
+                  ) : q.manual ? (
+                    <button
+                      style={styles.questMarkBtn}
+                      onClick={() => completeQuest(q.key)}
+                    >
+                      Mark done
+                    </button>
+                  ) : (
+                    <div style={styles.questPendingBadge}>Pending</div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={styles.questNote}>
+            Azkar, Quran and Tasbih quests complete automatically when you use those features. Prayers must be marked manually.
+          </div>
+        </div>
+      )}
+
       {/* ===== NEARBY MOSQUES SCREEN ===== */}
       {activeTab === "nearby" && (
         <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
@@ -1382,6 +1542,7 @@ IMPORTANT RULES:
                 ...(tasbihCount >= tasbihTarget ? styles.tasbihBtnDone : {}),
               }}
               onClick={() => {
+                completeQuest("tasbih");
                 if (tasbihCount >= tasbihTarget) {
                   setTasbihCompleted((prev) => prev + 1);
                   setTasbihCount(0);
@@ -1839,6 +2000,28 @@ const styles = {
   greetingDot: { color: MUTED, fontSize: 13 },
   greetingDate: { fontSize: 13, color: MUTED },
   greetingDivider: { height: 1, background: `linear-gradient(to right, transparent, ${GOLD}44, transparent)`, marginBottom: 16 },
+  streakBadge: { display: "flex", alignItems: "center", justifyContent: "center", gap: 4, background: `${GOLD}18`, border: `1px solid ${GOLD}44`, borderRadius: 20, padding: "5px 14px", fontSize: 13, color: GOLD_LIGHT, fontWeight: 700, margin: "0 auto 10px", cursor: "pointer" },
+  streakBadgeArrow: { color: GOLD, fontSize: 16, lineHeight: 1 },
+  // Quests screen styles
+  questOverallCard: { background: `linear-gradient(135deg, #1A3A5C, ${CARD})`, border: `1px solid ${GOLD}44`, borderRadius: 16, padding: "22px 20px", textAlign: "center", marginBottom: 18 },
+  questFireEmoji: { fontSize: 32, marginBottom: 4 },
+  questOverallCount: { fontSize: 38, fontWeight: 700, color: GOLD_LIGHT, lineHeight: 1.1 },
+  questOverallLabel: { fontSize: 13, color: MUTED, marginTop: 2, textTransform: "uppercase", letterSpacing: "0.05em" },
+  questOverallSub: { fontSize: 12.5, color: MUTED, marginTop: 8, lineHeight: 1.5 },
+  questList: { display: "flex", flexDirection: "column", gap: 10 },
+  questRow: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", background: CARD, border: `1px solid #1E3A5A`, borderRadius: 14, padding: "14px 16px" },
+  questRowDone: { border: `1px solid ${GREEN}66`, background: "#0D2818" },
+  questLeft: { display: "flex", gap: 12, flex: 1, minWidth: 0 },
+  questEmoji: { fontSize: 24, flexShrink: 0 },
+  questInfo: { flex: 1, minWidth: 0 },
+  questTitle: { fontSize: 15, fontWeight: 600, color: TEXT, marginBottom: 2 },
+  questDesc: { fontSize: 12.5, color: MUTED, marginBottom: 6, lineHeight: 1.4 },
+  questStreak: { fontSize: 12, color: GOLD },
+  questRight: { flexShrink: 0, marginLeft: 10 },
+  questDoneBadge: { width: 28, height: 28, borderRadius: "50%", background: GREEN, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700 },
+  questMarkBtn: { background: GOLD, color: MIDNIGHT, borderRadius: 10, padding: "8px 14px", fontSize: 12.5, fontWeight: 700, border: "none", cursor: "pointer", whiteSpace: "nowrap" },
+  questPendingBadge: { background: DEEP, color: MUTED, borderRadius: 8, padding: "6px 10px", fontSize: 11.5, fontWeight: 600, border: `1px solid #1E3A5A` },
+  questNote: { fontSize: 12, color: "#5A7A9A", textAlign: "center", marginTop: 18, lineHeight: 1.6, fontStyle: "italic" },
   shortcutsWrap: { position: "relative", marginBottom: 20 },
   shortcutsRow: { display: "flex", gap: 18, overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none", padding: "0 4px 4px" },
   shortcutsFade: { position: "absolute", top: 0, right: 0, bottom: 4, width: 36, background: `linear-gradient(to right, transparent, ${MIDNIGHT})`, pointerEvents: "none" },
